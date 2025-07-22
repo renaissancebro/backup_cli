@@ -176,6 +176,27 @@ These tools give the AI the ability to:
 
 The CLI supports connecting to Ollama running on remote servers through SSH tunnels. This allows you to use powerful remote machines for AI inference while maintaining the same local interface.
 
+### Quick Start
+
+1. **Configure remote Ollama:**
+   ```bash
+   python main.py configure
+   # Select Ollama
+   # Choose "Yes" when asked if remote
+   # Enter your server details
+   ```
+
+2. **Start chatting:**
+   ```bash
+   python main.py chat --provider ollama
+   # SSH tunnel connects automatically
+   ```
+
+3. **Test connection first (optional):**
+   ```bash
+   python main.py tunnel --host your-server.com --username your-user --key-file ~/.ssh/id_rsa
+   ```
+
 ### SSH Configuration
 
 When configuring Ollama (via `python main.py configure`), you can set up SSH access:
