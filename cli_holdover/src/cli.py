@@ -225,5 +225,46 @@ def status():
     
     asyncio.run(run_status())
 
+@cli.command()
+@click.option("--host", "-h", required=True, help="SSH host")
+@click.option("--username", "-u", help="SSH username")
+@click.option("--port", "-p", default=22, help="SSH port")
+@click.option("--key-file", "-k", help="SSH key file path")
+@click.option("--remote-port", "-r", default=11434, help="Remote Ollama port")
+@click.option("--local-port", "-l", help="Local port for tunnel")
+def tunnel(host: str, username: str, port: int, key_file: str, remote_port: int, local_port: int):
+    """Create SSH tunnel to remote Ollama server for testing"""
+    from .ssh_tunnel import SSHTunnel, SSHConfig
+    
+    config = SSHConfig(
+        host=host,
+        username=username,
+        port=port,
+        key_file=key_file,
+        remote_port=remote_port,
+        local_port=local_port
+    )
+    
+    console.print(f"[blue]Creating SSH tunnel to {host}...[/blue]")
+    tunnel = SSHTunnel(config)
+    
+    if tunnel.start():
+        console.print(f"[green]✓ SSH tunnel established![/green]")
+        console.print(f"[dim]Local URL: {tunnel.get_local_url()}[/dim]")
+        console.print(f"[dim]Tunnel: localhost:{tunnel.local_port} -> {host}:{remote_port}[/dim]")
+        console.print("[yellow]Press Ctrl+C to close tunnel[/yellow]")
+        
+        try:
+            import time
+            while tunnel.is_active():
+                time.sleep(1)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Closing tunnel...[/yellow]")
+        finally:
+            tunnel.stop()
+            console.print("[green]✓ Tunnel closed[/green]")
+    else:
+        console.print("[red]✗ Failed to establish SSH tunnel[/red]")
+
 if __name__ == "__main__":
     cli()

@@ -77,6 +77,12 @@ Verify your provider configurations:
 python main.py status
 ```
 
+#### SSH Tunnel Testing
+Test SSH connection to remote Ollama server:
+```bash
+python main.py tunnel --host your-server.com --username your-user --key-file ~/.ssh/id_rsa
+```
+
 ### Interactive Commands
 
 Within chat mode, use these commands:
@@ -115,7 +121,15 @@ python main.py chat --config /path/to/config.json
     "ollama": {
       "base_url": "http://localhost:11434",
       "model": "llama2",
-      "timeout": 120
+      "timeout": 120,
+      "ssh": {
+        "host": "your-server.com",
+        "username": "your-user", 
+        "key_file": "~/.ssh/id_rsa",
+        "port": 22,
+        "remote_port": 11434,
+        "remote_host": "localhost"
+      }
     }
   }
 }
@@ -153,9 +167,84 @@ These tools give the AI the ability to:
 
 ### Ollama
 - Local model support
+- **Remote SSH access** - Connect to Ollama running on remote servers
 - Custom model configurations
 - Streaming responses
 - Offline operation
+
+## Remote Ollama via SSH
+
+The CLI supports connecting to Ollama running on remote servers through SSH tunnels. This allows you to use powerful remote machines for AI inference while maintaining the same local interface.
+
+### SSH Configuration
+
+When configuring Ollama (via `python main.py configure`), you can set up SSH access:
+
+1. **Remote Setup**: Choose "Yes" when asked if Ollama is on a remote machine
+2. **SSH Details**: Provide host, username, and authentication method
+3. **Authentication**: Use SSH key files (recommended) or password
+4. **Ports**: Specify custom ports if needed
+
+### SSH Authentication
+
+**SSH Key Authentication (Recommended):**
+```json
+{
+  "ssh": {
+    "host": "your-server.com",
+    "username": "your-user",
+    "key_file": "~/.ssh/id_rsa",
+    "port": 22,
+    "remote_port": 11434
+  }
+}
+```
+
+**Manual SSH Key Setup:**
+```bash
+# Generate SSH key if you don't have one
+ssh-keygen -t rsa -b 4096 -C "your-email@example.com"
+
+# Copy key to remote server
+ssh-copy-id your-user@your-server.com
+```
+
+### Testing SSH Connection
+
+Before using with the AI provider, test your SSH tunnel:
+
+```bash
+# Test tunnel manually
+python main.py tunnel --host your-server.com --username your-user --key-file ~/.ssh/id_rsa
+
+# Test with custom ports
+python main.py tunnel -h your-server.com -u your-user -k ~/.ssh/id_rsa -r 11434 -l 8080
+```
+
+### Automatic Tunnel Management
+
+When you configure Ollama with SSH settings, the CLI automatically:
+- Establishes SSH tunnel when starting conversations
+- Manages local port forwarding
+- Handles tunnel failures gracefully
+- Cleans up tunnels when done
+
+### Troubleshooting SSH
+
+**Common Issues:**
+- **Permission denied**: Check SSH key permissions (`chmod 600 ~/.ssh/id_rsa`)
+- **Connection refused**: Verify remote Ollama is running (`ollama list`)
+- **Port conflicts**: Specify custom local port in configuration
+- **Timeout errors**: Increase SSH connection timeout
+
+**Debug SSH Connection:**
+```bash
+# Test SSH connection manually
+ssh -v your-user@your-server.com
+
+# Check remote Ollama status
+ssh your-user@your-server.com "ollama list"
+```
 
 ## MCP Integration (Claude)
 

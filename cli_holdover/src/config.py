@@ -152,19 +152,65 @@ class Config:
         """Configure Ollama provider"""
         console.print("\n[bold blue]Ollama Configuration[/bold blue]")
         
-        base_url = Prompt.ask("Ollama base URL", default="http://localhost:11434")
+        # Ask if using local or remote Ollama
+        is_remote = Confirm.ask("Is Ollama running on a remote machine?", default=False)
+        
+        config = {}
+        
+        if is_remote:
+            # SSH configuration for remote access
+            console.print("[dim]Configuring SSH tunnel for remote Ollama access[/dim]")
+            
+            ssh_host = Prompt.ask("SSH host (IP or hostname)")
+            ssh_user = Prompt.ask("SSH username")
+            ssh_port = int(Prompt.ask("SSH port", default="22"))
+            
+            # Authentication method
+            auth_method = Prompt.ask(
+                "Authentication method",
+                choices=["key", "password"],
+                default="key"
+            )
+            
+            ssh_config = {
+                "host": ssh_host,
+                "username": ssh_user,
+                "port": ssh_port,
+                "remote_port": int(Prompt.ask("Remote Ollama port", default="11434")),
+                "remote_host": Prompt.ask("Remote Ollama host", default="localhost")
+            }
+            
+            if auth_method == "key":
+                key_file = Prompt.ask("SSH key file path", default="~/.ssh/id_rsa")
+                ssh_config["key_file"] = key_file
+            
+            # Optional local port specification
+            local_port = Prompt.ask("Local port (leave empty for auto)", default="")
+            if local_port:
+                ssh_config["local_port"] = int(local_port)
+            
+            config["ssh"] = ssh_config
+            config["base_url"] = "http://localhost:11434"  # Will be updated by tunnel
+        else:
+            # Local Ollama configuration
+            base_url = Prompt.ask("Ollama base URL", default="http://localhost:11434")
+            config["base_url"] = base_url
+        
+        # Common configuration
         model = Prompt.ask("Model", default="llama2")
         timeout = int(Prompt.ask("Timeout (seconds)", default="120"))
         
-        config = {
-            "base_url": base_url,
+        config.update({
             "model": model,
             "timeout": timeout,
             "options": {}
-        }
+        })
         
         self.set_provider_config("ollama", config)
         console.print("[green]✓ Ollama configured[/green]")
+        
+        if is_remote:
+            console.print("[dim]SSH tunnel will be established automatically when using this provider[/dim]")
     
     def _configure_mcp_servers(self) -> list:
         """Configure MCP servers for Claude"""

@@ -2,6 +2,7 @@ import json
 import httpx
 from typing import Dict, Any, List, Optional, AsyncIterator
 from .base import BaseProvider, Message, Tool, ProviderResponse, ProviderType
+from ..ssh_tunnel import SSHTunnel, SSHConfig
 
 class OllamaProvider(BaseProvider):
     def __init__(self, config: Dict[str, Any]):
@@ -10,6 +11,12 @@ class OllamaProvider(BaseProvider):
         self.model = config.get("model", "llama2")
         self.timeout = config.get("timeout", 120)
         self.options = config.get("options", {})
+        self.ssh_tunnel: Optional[SSHTunnel] = None
+        
+        # Set up SSH tunnel if configured
+        ssh_config = config.get("ssh")
+        if ssh_config:
+            self._setup_ssh_tunnel(ssh_config)
     
     def get_provider_type(self) -> ProviderType:
         return ProviderType.OLLAMA
@@ -128,3 +135,32 @@ class OllamaProvider(BaseProvider):
                                 yield chunk["response"]
                         except json.JSONDecodeError:
                             continue
+    
+    def _setup_ssh_tunnel(self, ssh_config: Dict[str, Any]) -> None:
+        """Set up SSH tunnel for remote Ollama access"""
+        config = SSHConfig(
+            host=ssh_config["host"],
+            port=ssh_config.get("port", 22),
+            username=ssh_config.get("username"),
+            key_file=ssh_config.get("key_file"),
+            local_port=ssh_config.get("local_port"),
+            remote_port=ssh_config.get("remote_port", 11434),
+            remote_host=ssh_config.get("remote_host", "localhost")
+        )
+        
+        self.ssh_tunnel = SSHTunnel(config)
+        if self.ssh_tunnel.start():
+            # Update base_url to use the tunnel
+            self.base_url = self.ssh_tunnel.get_local_url()
+        else:
+            raise ConnectionError(f"Failed to establish SSH tunnel to {config.host}")
+    
+    def close_ssh_tunnel(self) -> None:
+        """Close the SSH tunnel if active"""
+        if self.ssh_tunnel:
+            self.ssh_tunnel.stop()
+            self.ssh_tunnel = None
+    
+    def __del__(self):
+        """Cleanup SSH tunnel on deletion"""
+        self.close_ssh_tunnel()
